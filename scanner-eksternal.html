@@ -287,52 +287,33 @@
 
     function kirimNISN(nisn) {
 
-      const url =
-        WEB_APP_URL +
-        '?action=scanner' +
-        '&nisn=' +
-        encodeURIComponent(nisn) +
-        '&petugas=' +
-        encodeURIComponent('Scanner HP');
+  hasil.className = 'loading';
+
+  hasil.innerHTML =
+    '🔎 QR terbaca<br>' +
+    '<strong>NISN: ' +
+    nisn +
+    '</strong><br><br>' +
+    'Menghubungkan ke PresensiKu...';
 
 
-      fetch(url, {
-        method: 'GET',
-        cache: 'no-store'
-      })
+  // ==========================================================
+  // Nama callback unik
+  // ==========================================================
 
-      .then(function(response) {
+  const callbackName =
+    'presensiKuCallback_' +
+    Date.now();
 
-        if (!response.ok) {
 
-          throw new Error(
-            'HTTP ' +
-            response.status
-          );
+  // ==========================================================
+  // Fungsi callback yang akan dipanggil Apps Script
+  // ==========================================================
 
-        }
+  window[callbackName] =
+    function(data) {
 
-        return response.text();
-
-      })
-
-      .then(function(text) {
-
-        let data;
-
-        try {
-
-          data = JSON.parse(text);
-
-        } catch (error) {
-
-          throw new Error(
-            'Respons Web App bukan JSON: ' +
-            text.substring(0, 300)
-          );
-
-        }
-
+      try {
 
         // ------------------------------------------------------
         // PRESENSI BERHASIL
@@ -384,13 +365,13 @@
             'Waktu presensi: ' +
             (data.waktu || '-') +
             '<br><br>' +
-            (data.message || 'Siswa sudah melakukan presensi hari ini.');
+            (data.message || '');
 
         }
 
 
         // ------------------------------------------------------
-        // ERROR DARI BACKEND
+        // ERROR
         // ------------------------------------------------------
 
         else {
@@ -407,25 +388,76 @@
         btnScanLagi.style.display =
           'block';
 
-      })
 
-      .catch(function(error) {
+      } finally {
 
-        hasil.className = 'error';
+        // Hapus callback setelah selesai
+        try {
+          delete window[callbackName];
+        } catch (e) {}
 
-        hasil.innerHTML =
-          '❌ <strong>Gagal terhubung ke Web App</strong><br><br>' +
-          String(error) +
-          '<br><br>' +
-          'Pastikan koneksi internet HP aktif.';
+      }
+
+    };
 
 
-        btnScanLagi.style.display =
-          'block';
+  // ==========================================================
+  // Buat URL JSONP
+  // ==========================================================
 
-      });
+  const url =
+    WEB_APP_URL +
+    '?action=scanner' +
+    '&nisn=' +
+    encodeURIComponent(nisn) +
+    '&petugas=' +
+    encodeURIComponent('Scanner HP') +
+    '&callback=' +
+    encodeURIComponent(callbackName);
 
-    }
+
+  // ==========================================================
+  // Buat elemen SCRIPT
+  // Tidak menggunakan fetch()
+  // sehingga masalah CORS dapat dihindari.
+  // ==========================================================
+
+  const script =
+    document.createElement('script');
+
+
+  script.src = url;
+
+  script.async = true;
+
+
+  // ==========================================================
+  // Jika koneksi gagal
+  // ==========================================================
+
+  script.onerror =
+    function() {
+
+      hasil.className = 'error';
+
+      hasil.innerHTML =
+        '❌ <strong>Gagal terhubung ke Web App</strong><br><br>' +
+        'Tidak dapat menerima respons dari PresensiKu.';
+
+      btnScanLagi.style.display =
+        'block';
+
+
+      try {
+        delete window[callbackName];
+      } catch (e) {}
+
+    };
+
+
+  document.body.appendChild(script);
+
+}
 
 
     // ==========================================================
