@@ -67,6 +67,42 @@
       background: #f1f3f5;
       text-align: center;
       word-break: break-word;
+      line-height: 1.6;
+    }
+
+    .loading {
+      color: #555;
+    }
+
+    .success {
+      background: #d1e7dd !important;
+      color: #0f5132;
+    }
+
+    .warning {
+      background: #fff3cd !important;
+      color: #664d03;
+    }
+
+    .error {
+      background: #f8d7da !important;
+      color: #842029;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 15px;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: #0d6efd;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:active {
+      transform: scale(0.98);
     }
 
   </style>
@@ -92,6 +128,13 @@
         Meminta akses kamera...
       </div>
 
+      <button
+        id="btnScanLagi"
+        style="display:none;"
+        onclick="mulaiScanner()">
+        📷 Scan Lagi
+      </button>
+
     </div>
 
   </div>
@@ -99,69 +142,297 @@
 
   <script>
 
+    // ==========================================================
+    // URL WEB APP PRESENSIKU
+    // ==========================================================
+
+    const WEB_APP_URL =
+      'https://script.google.com/macros/s/AKfycbyd6CV_3o6kT8PrV4RZIRd9fpaLRE06Jq9qpuJKrbF2dMTssk59oEDA_a4EB6J_Nk94w/exec';
+
+
+    // ==========================================================
+    // ELEMENT
+    // ==========================================================
+
     const hasil =
       document.getElementById('hasil');
 
+    const btnScanLagi =
+      document.getElementById('btnScanLagi');
 
-    const scanner =
+
+    // ==========================================================
+    // SCANNER
+    // ==========================================================
+
+    let scanner =
       new Html5Qrcode('reader');
 
 
-    scanner.start(
+    let sedangMemproses = false;
 
-      {
-        facingMode: 'environment'
-      },
 
-      {
-        fps: 10,
+    // ==========================================================
+    // MULAI SCANNER
+    // ==========================================================
 
-        qrbox: {
-          width: 250,
-          height: 250
+    function mulaiScanner() {
+
+      sedangMemproses = false;
+
+      btnScanLagi.style.display = 'none';
+
+      hasil.className = '';
+
+      hasil.innerHTML =
+        '📷 Arahkan kamera ke QR NISN siswa...';
+
+
+      scanner.start(
+
+        {
+          facingMode: 'environment'
+        },
+
+        {
+          fps: 10,
+
+          qrbox: {
+            width: 250,
+            height: 250
+          }
+
+        },
+
+        function(decodedText) {
+
+          // ----------------------------------------------------
+          // Mencegah QR yang sama diproses berkali-kali
+          // ----------------------------------------------------
+
+          if (sedangMemproses) {
+            return;
+          }
+
+          sedangMemproses = true;
+
+
+          const nisn =
+            String(decodedText || '').trim();
+
+
+          if (!nisn) {
+
+            sedangMemproses = false;
+
+            return;
+          }
+
+
+          // ----------------------------------------------------
+          // Tampilkan NISN
+          // ----------------------------------------------------
+
+          hasil.className = 'loading';
+
+          hasil.innerHTML =
+            '🔎 QR terbaca<br>' +
+            '<strong>NISN: ' +
+            nisn +
+            '</strong><br><br>' +
+            'Mengirim ke PresensiKu...';
+
+
+          // ----------------------------------------------------
+          // Hentikan kamera sementara
+          // ----------------------------------------------------
+
+          scanner.stop()
+            .catch(function() {});
+
+
+          // ----------------------------------------------------
+          // KIRIM NISN KE WEB APP
+          // ----------------------------------------------------
+
+          kirimNISN(nisn);
+
+        },
+
+        function(errorMessage) {
+
+          // Tidak menampilkan error ketika
+          // QR belum terbaca.
+
         }
 
-      },
+      )
 
-      function(decodedText) {
+      .catch(function(error) {
 
-        const nisn =
-          String(decodedText || '').trim();
+        hasil.className = 'error';
+
+        hasil.innerHTML =
+          '❌ Kamera tidak dapat digunakan.<br><br>' +
+          String(error);
+
+      });
+
+    }
 
 
-        if (!nisn) {
-          return;
+    // ==========================================================
+    // KIRIM NISN KE WEB APP
+    // ==========================================================
+
+    function kirimNISN(nisn) {
+
+      const url =
+        WEB_APP_URL +
+        '?action=scanner' +
+        '&nisn=' +
+        encodeURIComponent(nisn) +
+        '&petugas=' +
+        encodeURIComponent('Scanner HP');
+
+
+      fetch(url, {
+        method: 'GET',
+        cache: 'no-store'
+      })
+
+      .then(function(response) {
+
+        if (!response.ok) {
+
+          throw new Error(
+            'HTTP ' +
+            response.status
+          );
+
+        }
+
+        return response.text();
+
+      })
+
+      .then(function(text) {
+
+        let data;
+
+        try {
+
+          data = JSON.parse(text);
+
+        } catch (error) {
+
+          throw new Error(
+            'Respons Web App bukan JSON: ' +
+            text.substring(0, 300)
+          );
+
         }
 
 
-        hasil.textContent =
-          'QR terbaca: ' + nisn;
+        // ------------------------------------------------------
+        // PRESENSI BERHASIL
+        // ------------------------------------------------------
+
+        if (data.success) {
+
+          hasil.className = 'success';
+
+          hasil.innerHTML =
+            '✅ <strong>PRESENSI BERHASIL</strong><br><br>' +
+            'Nama: <strong>' +
+            (data.Nama || '-') +
+            '</strong><br>' +
+            'NISN: ' +
+            (data.NISN || '-') +
+            '<br>' +
+            'Kelas: ' +
+            (data.Kelas || '-') +
+            '<br>' +
+            'Status: <strong>Hadir</strong><br>' +
+            'Waktu: ' +
+            (data.waktu || '-') +
+            '<br><br>' +
+            (data.message || '');
+
+        }
 
 
-        scanner.stop()
-          .catch(function() {});
+        // ------------------------------------------------------
+        // SUDAH PRESENSI
+        // ------------------------------------------------------
+
+        else if (data.sudahPresensi) {
+
+          hasil.className = 'warning';
+
+          hasil.innerHTML =
+            '⚠️ <strong>SUDAH PRESENSI</strong><br><br>' +
+            'Nama: <strong>' +
+            (data.Nama || '-') +
+            '</strong><br>' +
+            'NISN: ' +
+            (data.NISN || '-') +
+            '<br>' +
+            'Kelas: ' +
+            (data.Kelas || '-') +
+            '<br>' +
+            'Waktu presensi: ' +
+            (data.waktu || '-') +
+            '<br><br>' +
+            (data.message || 'Siswa sudah melakukan presensi hari ini.');
+
+        }
 
 
-      },
+        // ------------------------------------------------------
+        // ERROR DARI BACKEND
+        // ------------------------------------------------------
+
+        else {
+
+          hasil.className = 'error';
+
+          hasil.innerHTML =
+            '❌ <strong>GAGAL</strong><br><br>' +
+            (data.message || 'Terjadi kesalahan.');
+
+        }
 
 
-      function(errorMessage) {
+        btnScanLagi.style.display =
+          'block';
 
-        // Tidak menampilkan
-        // pesan ketika QR belum terbaca.
+      })
 
-      }
+      .catch(function(error) {
 
-    )
+        hasil.className = 'error';
+
+        hasil.innerHTML =
+          '❌ <strong>Gagal terhubung ke Web App</strong><br><br>' +
+          String(error) +
+          '<br><br>' +
+          'Pastikan koneksi internet HP aktif.';
 
 
-    .catch(function(error) {
+        btnScanLagi.style.display =
+          'block';
 
-      hasil.textContent =
-        'Kamera tidak dapat digunakan: ' +
-        error;
+      });
 
-    });
+    }
+
+
+    // ==========================================================
+    // MULAI OTOMATIS
+    // ==========================================================
+
+    mulaiScanner();
 
   </script>
 
