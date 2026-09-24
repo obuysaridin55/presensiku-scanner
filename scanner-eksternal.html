@@ -147,7 +147,7 @@
     // ==========================================================
 
     const WEB_APP_URL =
-      'https://script.google.com/macros/s/AKfycbyd6CV_3o6kT8PrV4RZIRd9fpaLRE06Jq9qpuJKrbF2dMTssk59oEDA_a4EB6J_Nk94w/exec';
+      'https://script.google.com/macros/s/AKfycbyd6CV_3o6kT8PrV4RZIRdF9pfaLRE06Jq9qpuJKrbF2dMTssk59oEDA_a4EB6J_Nk94w/exec';
 
 
     // ==========================================================
@@ -167,7 +167,6 @@
 
     let scanner =
       new Html5Qrcode('reader');
-
 
     let sedangMemproses = false;
 
@@ -206,10 +205,6 @@
 
         function(decodedText) {
 
-          // ----------------------------------------------------
-          // Mencegah QR yang sama diproses berkali-kali
-          // ----------------------------------------------------
-
           if (sedangMemproses) {
             return;
           }
@@ -229,10 +224,6 @@
           }
 
 
-          // ----------------------------------------------------
-          // Tampilkan NISN
-          // ----------------------------------------------------
-
           hasil.className = 'loading';
 
           hasil.innerHTML =
@@ -243,17 +234,9 @@
             'Mengirim ke PresensiKu...';
 
 
-          // ----------------------------------------------------
-          // Hentikan kamera sementara
-          // ----------------------------------------------------
-
           scanner.stop()
             .catch(function() {});
 
-
-          // ----------------------------------------------------
-          // KIRIM NISN KE WEB APP
-          // ----------------------------------------------------
 
           kirimNISN(nisn);
 
@@ -261,8 +244,8 @@
 
         function(errorMessage) {
 
-          // Tidak menampilkan error ketika
-          // QR belum terbaca.
+          // Tidak menampilkan pesan
+          // selama QR belum terbaca.
 
         }
 
@@ -287,177 +270,205 @@
 
     function kirimNISN(nisn) {
 
-  hasil.className = 'loading';
+      hasil.className = 'loading';
 
-  hasil.innerHTML =
-    '🔎 QR terbaca<br>' +
-    '<strong>NISN: ' +
-    nisn +
-    '</strong><br><br>' +
-    'Menghubungkan ke PresensiKu...';
-
-
-  // ==========================================================
-  // Nama callback unik
-  // ==========================================================
-
-  const callbackName =
-    'presensiKuCallback_' +
-    Date.now();
+      hasil.innerHTML =
+        '🔎 QR terbaca<br>' +
+        '<strong>NISN: ' +
+        nisn +
+        '</strong><br><br>' +
+        'Menghubungkan ke PresensiKu...';
 
 
-  // ==========================================================
-  // Fungsi callback yang akan dipanggil Apps Script
-  // ==========================================================
+      // --------------------------------------------------------
+      // Nama callback unik
+      // --------------------------------------------------------
 
-  window[callbackName] =
-    function(data) {
-
-      try {
-
-        // ------------------------------------------------------
-        // PRESENSI BERHASIL
-        // ------------------------------------------------------
-
-        if (data.success) {
-
-          hasil.className = 'success';
-
-          hasil.innerHTML =
-            '✅ <strong>PRESENSI BERHASIL</strong><br><br>' +
-            'Nama: <strong>' +
-            (data.Nama || '-') +
-            '</strong><br>' +
-            'NISN: ' +
-            (data.NISN || '-') +
-            '<br>' +
-            'Kelas: ' +
-            (data.Kelas || '-') +
-            '<br>' +
-            'Status: <strong>Hadir</strong><br>' +
-            'Waktu: ' +
-            (data.waktu || '-') +
-            '<br><br>' +
-            (data.message || '');
-
-        }
+      const callbackName =
+        'presensiKuCallback_' +
+        Date.now();
 
 
-        // ------------------------------------------------------
-        // SUDAH PRESENSI
-        // ------------------------------------------------------
+      // --------------------------------------------------------
+      // Callback JSONP
+      // --------------------------------------------------------
 
-        else if (data.sudahPresensi) {
+      window[callbackName] =
+        function(data) {
 
-          hasil.className = 'warning';
+          try {
 
-          hasil.innerHTML =
-            '⚠️ <strong>SUDAH PRESENSI</strong><br><br>' +
-            'Nama: <strong>' +
-            (data.Nama || '-') +
-            '</strong><br>' +
-            'NISN: ' +
-            (data.NISN || '-') +
-            '<br>' +
-            'Kelas: ' +
-            (data.Kelas || '-') +
-            '<br>' +
-            'Waktu presensi: ' +
-            (data.waktu || '-') +
-            '<br><br>' +
-            (data.message || '');
+            if (data.success) {
 
-        }
+              hasil.className = 'success';
+
+              hasil.innerHTML =
+                '✅ <strong>PRESENSI BERHASIL</strong><br><br>' +
+                'Nama: <strong>' +
+                (data.Nama || '-') +
+                '</strong><br>' +
+                'NISN: ' +
+                (data.NISN || '-') +
+                '<br>' +
+                'Kelas: ' +
+                (data.Kelas || '-') +
+                '<br>' +
+                'Status: <strong>Hadir</strong><br>' +
+                'Waktu: ' +
+                (data.waktu || '-') +
+                '<br><br>' +
+                (data.message || '');
+
+            }
+
+            else if (data.sudahPresensi) {
+
+              hasil.className = 'warning';
+
+              hasil.innerHTML =
+                '⚠️ <strong>SUDAH PRESENSI</strong><br><br>' +
+                'Nama: <strong>' +
+                (data.Nama || '-') +
+                '</strong><br>' +
+                'NISN: ' +
+                (data.NISN || '-') +
+                '<br>' +
+                'Kelas: ' +
+                (data.Kelas || '-') +
+                '<br>' +
+                'Waktu presensi: ' +
+                (data.waktu || '-') +
+                '<br><br>' +
+                (data.message || '');
+
+            }
+
+            else {
+
+              hasil.className = 'error';
+
+              hasil.innerHTML =
+                '❌ <strong>GAGAL</strong><br><br>' +
+                (data.message ||
+                'Terjadi kesalahan.');
+
+            }
 
 
-        // ------------------------------------------------------
-        // ERROR
-        // ------------------------------------------------------
+            btnScanLagi.style.display =
+              'block';
 
-        else {
+
+          } finally {
+
+            try {
+              delete window[callbackName];
+            } catch (e) {}
+
+          }
+
+        };
+
+
+      // --------------------------------------------------------
+      // URL JSONP
+      // --------------------------------------------------------
+
+      const url =
+        WEB_APP_URL +
+        '?action=scanner' +
+        '&nisn=' +
+        encodeURIComponent(nisn) +
+        '&petugas=' +
+        encodeURIComponent('Scanner HP') +
+        '&callback=' +
+        encodeURIComponent(callbackName);
+
+
+      // --------------------------------------------------------
+      // Buat script untuk JSONP
+      // --------------------------------------------------------
+
+      const script =
+        document.createElement('script');
+
+
+      script.src = url;
+
+      script.async = true;
+
+
+      // --------------------------------------------------------
+      // Timeout koneksi
+      // --------------------------------------------------------
+
+      const timeout =
+        setTimeout(function() {
 
           hasil.className = 'error';
 
           hasil.innerHTML =
-            '❌ <strong>GAGAL</strong><br><br>' +
-            (data.message || 'Terjadi kesalahan.');
+            '❌ <strong>Waktu koneksi habis.</strong><br><br>' +
+            'Web App belum memberikan respons.';
 
-        }
-
-
-        btnScanLagi.style.display =
-          'block';
+          btnScanLagi.style.display =
+            'block';
 
 
-      } finally {
+          try {
+            delete window[callbackName];
+          } catch (e) {}
 
-        // Hapus callback setelah selesai
-        try {
-          delete window[callbackName];
-        } catch (e) {}
-
-      }
-
-    };
+        }, 15000);
 
 
-  // ==========================================================
-  // Buat URL JSONP
-  // ==========================================================
+      // --------------------------------------------------------
+      // Jika JSONP berhasil
+      // --------------------------------------------------------
 
-  const url =
-    WEB_APP_URL +
-    '?action=scanner' +
-    '&nisn=' +
-    encodeURIComponent(nisn) +
-    '&petugas=' +
-    encodeURIComponent('Scanner HP') +
-    '&callback=' +
-    encodeURIComponent(callbackName);
+      const callbackAsli =
+        window[callbackName];
 
 
-  // ==========================================================
-  // Buat elemen SCRIPT
-  // Tidak menggunakan fetch()
-  // sehingga masalah CORS dapat dihindari.
-  // ==========================================================
+      window[callbackName] =
+        function(data) {
 
-  const script =
-    document.createElement('script');
+          clearTimeout(timeout);
 
+          callbackAsli(data);
 
-  script.src = url;
-
-  script.async = true;
+        };
 
 
-  // ==========================================================
-  // Jika koneksi gagal
-  // ==========================================================
+      // --------------------------------------------------------
+      // Jika script gagal dimuat
+      // --------------------------------------------------------
 
-  script.onerror =
-    function() {
+      script.onerror =
+        function() {
 
-      hasil.className = 'error';
+          clearTimeout(timeout);
 
-      hasil.innerHTML =
-        '❌ <strong>Gagal terhubung ke Web App</strong><br><br>' +
-        'Tidak dapat menerima respons dari PresensiKu.';
+          hasil.className = 'error';
 
-      btnScanLagi.style.display =
-        'block';
+          hasil.innerHTML =
+            '❌ <strong>Gagal terhubung ke Web App.</strong><br><br>' +
+            'Respons dari PresensiKu tidak dapat diterima.';
 
-
-      try {
-        delete window[callbackName];
-      } catch (e) {}
-
-    };
+          btnScanLagi.style.display =
+            'block';
 
 
-  document.body.appendChild(script);
+          try {
+            delete window[callbackName];
+          } catch (e) {}
 
-}
+        };
+
+
+      document.body.appendChild(script);
+
+    }
 
 
     // ==========================================================
@@ -471,3 +482,4 @@
 </body>
 
 </html>
+
